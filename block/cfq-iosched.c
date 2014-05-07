@@ -4124,7 +4124,7 @@ static int cfq_may_queue(struct request_queue *q, int rw)
 	if (!cic)
 		return ELV_MQUEUE_MAY;
 
-	cfqq = cic_to_cfqq(cic, rw_is_sync(rw));
+	cfqq = cic_to_cfqq(cic, rw_is_sync(q, rw));
 	if (cfqq) {
 		cfq_init_prio_data(cfqq, cic);
 

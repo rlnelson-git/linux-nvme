@@ -190,7 +190,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->cmd_flags = rw_flags;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
-	ctx->rq_dispatched[rw_is_sync(rw_flags)]++;
+	ctx->rq_dispatched[rw_is_sync(q, rw_flags)]++;
 }
 
 static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
@@ -830,7 +830,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
-	const int is_sync = rw_is_sync(bio->bi_rw);
+	const int is_sync = rw_is_sync(q, bio->bi_rw);
 	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
 	int rw = bio_data_dir(bio);
 	struct request *rq;

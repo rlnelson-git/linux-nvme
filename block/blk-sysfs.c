@@ -277,6 +277,38 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	return ret;
 }
 
+static ssize_t queue_allow_async_read_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(!!(q->queue_flags & QUEUE_FLAG_ALLOW_ASYNC_READ),
+			      page);
+}
+
+static ssize_t queue_allow_async_read_store(struct request_queue *q,
+					    const char *page, size_t count)
+{
+	unsigned long nm;
+	ssize_t ret = queue_var_store(&nm, page, count);
+
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irq(q->queue_lock);
+	switch (nm) {
+	case 0:
+		queue_flag_clear(QUEUE_FLAG_ALLOW_ASYNC_READ, q);
+		break;
+	case 1:
+		queue_flag_set(QUEUE_FLAG_ALLOW_ASYNC_READ, q);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
+
 static ssize_t queue_rq_affinity_show(struct request_queue *q, char *page)
 {
 	bool set = test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags);
@@ -413,6 +445,12 @@ static struct queue_sysfs_entry queue_nomerges_entry = {
 	.store = queue_nomerges_store,
 };
 
+static struct queue_sysfs_entry queue_allow_async_read_entry = {
+	.attr = {.name = "allow_async_read", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_allow_async_read_show,
+	.store = queue_allow_async_read_store,
+};
+
 static struct queue_sysfs_entry queue_rq_affinity_entry = {
 	.attr = {.name = "rq_affinity", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_rq_affinity_show,
@@ -451,6 +489,7 @@ static struct attribute *default_attrs[] = {
 	&queue_write_same_max_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
+	&queue_allow_async_read_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_random_entry.attr,

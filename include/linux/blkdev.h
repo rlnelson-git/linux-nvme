@@ -492,6 +492,7 @@ struct request_queue {
 #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
 #define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
 #define QUEUE_FLAG_INIT_DONE   20	/* queue is initialized */
+#define QUEUE_FLAG_ALLOW_ASYNC_READ	21 /* REQ_READ not implicitly sync */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
@@ -607,16 +608,23 @@ static inline unsigned int blk_queue_cluster(struct request_queue *q)
 }
 
 /*
- * We regard a request as sync, if either a read or a sync write
+ * By default, we regard a request as sync, if either a read or a sync write.
+ *
+ * If QUEUE_FLAG_ALLOW_ASYNC_READ is set, REQ_READ w/o REQ_SYNC is not
+ * implicitly treated as synchronous.
  */
-static inline bool rw_is_sync(unsigned int rw_flags)
+static inline bool rw_is_sync(struct request_queue *q, unsigned int rw_flags)
 {
-	return !(rw_flags & REQ_WRITE) || (rw_flags & REQ_SYNC);
+	if ((q->queue_flags & QUEUE_FLAG_ALLOW_ASYNC_READ) == 0)
+		return !(rw_flags & REQ_WRITE) || (rw_flags & REQ_SYNC);
+	else
+		return (rw_flags & (REQ_SYNC | REQ_META | REQ_DISCARD | REQ_FUA
+					| REQ_WRITE_SAME | REQ_FLUSH));
 }
 
 static inline bool rq_is_sync(struct request *rq)
 {
-	return rw_is_sync(rq->cmd_flags);
+	return rw_is_sync(rq->q, rq->cmd_flags);
 }
 
 static inline bool blk_rl_full(struct request_list *rl, bool sync)
