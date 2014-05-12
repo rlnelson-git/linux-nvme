@@ -206,13 +206,13 @@ unlock:
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
 
-static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
+static int acpi_ec_sync_query(struct acpi_ec *ec);
 
 static int ec_check_sci_sync(struct acpi_ec *ec, u8 state)
 {
 	if (state & ACPI_EC_FLAG_SCI) {
 		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
-			return acpi_ec_sync_query(ec, NULL);
+			return acpi_ec_sync_query(ec);
 	}
 	return 0;
 }
@@ -443,8 +443,10 @@ acpi_handle ec_get_handle(void)
 
 EXPORT_SYMBOL(ec_get_handle);
 
+static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 *data);
+
 /*
- * Process _Q events that might have accumulated in the EC.
+ * Clears stale _Q events that might have accumulated in the EC.
  * Run with locked ec mutex.
  */
 static void acpi_ec_clear(struct acpi_ec *ec)
@@ -453,7 +455,7 @@ static void acpi_ec_clear(struct acpi_ec *ec)
 	u8 value = 0;
 
 	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		status = acpi_ec_sync_query(ec, &value);
+		status = acpi_ec_query_unlocked(ec, &value);
 		if (status || !value)
 			break;
 	}
@@ -580,18 +582,13 @@ static void acpi_ec_run(void *cxt)
 	kfree(handler);
 }
 
-static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
+static int acpi_ec_sync_query(struct acpi_ec *ec)
 {
 	u8 value = 0;
 	int status;
 	struct acpi_ec_query_handler *handler, *copy;
-
-	status = acpi_ec_query_unlocked(ec, &value);
-	if (data)
-		*data = value;
-	if (status)
+	if ((status = acpi_ec_query_unlocked(ec, &value)))
 		return status;
-
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
 			/* have custom handler for this bit */
@@ -615,7 +612,7 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 	if (!ec)
 		return;
 	mutex_lock(&ec->mutex);
-	acpi_ec_sync_query(ec, NULL);
+	acpi_ec_sync_query(ec);
 	mutex_unlock(&ec->mutex);
 }
 

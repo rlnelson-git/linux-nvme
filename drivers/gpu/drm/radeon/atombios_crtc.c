@@ -1177,43 +1177,27 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 		/* Set NUM_BANKS. */
 		if (rdev->family >= CHIP_TAHITI) {
-			unsigned index, num_banks;
+			unsigned tileb, index, num_banks, tile_split_bytes;
 
-			if (rdev->family >= CHIP_BONAIRE) {
-				unsigned tileb, tile_split_bytes;
+			/* Calculate the macrotile mode index. */
+			tile_split_bytes = 64 << tile_split;
+			tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
+			tileb = min(tile_split_bytes, tileb);
 
-				/* Calculate the macrotile mode index. */
-				tile_split_bytes = 64 << tile_split;
-				tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
-				tileb = min(tile_split_bytes, tileb);
-
-				for (index = 0; tileb > 64; index++)
-					tileb >>= 1;
-
-				if (index >= 16) {
-					DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
-						  target_fb->bits_per_pixel, tile_split);
-					return -EINVAL;
-				}
-
-				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
-			} else {
-				switch (target_fb->bits_per_pixel) {
-				case 8:
-					index = 10;
-					break;
-				case 16:
-					index = SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP;
-					break;
-				default:
-				case 32:
-					index = SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP;
-					break;
-				}
-
-				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
+			for (index = 0; tileb > 64; index++) {
+				tileb >>= 1;
 			}
 
+			if (index >= 16) {
+				DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
+					  target_fb->bits_per_pixel, tile_split);
+				return -EINVAL;
+			}
+
+			if (rdev->family >= CHIP_BONAIRE)
+				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
+			else
+				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
 			/* NI and older. */
@@ -1736,9 +1720,8 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* otherwise, pick one of the plls */
 		if ((rdev->family == CHIP_KAVERI) ||
-		    (rdev->family == CHIP_KABINI) ||
-		    (rdev->family == CHIP_MULLINS)) {
-			/* KB/KV/ML has PPLL1 and PPLL2 */
+		    (rdev->family == CHIP_KABINI)) {
+			/* KB/KV has PPLL1 and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
@@ -1901,9 +1884,6 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	if (radeon_encoder->active_device &
 	    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 		is_tvcv = true;
-
-	if (!radeon_crtc->adjusted_clock)
-		return -EINVAL;
 
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 

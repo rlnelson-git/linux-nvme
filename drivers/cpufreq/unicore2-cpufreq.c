@@ -60,7 +60,9 @@ static int __init ucv2_cpu_init(struct cpufreq_policy *policy)
 	policy->max = policy->cpuinfo.max_freq = 1000000;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->clk = clk_get(NULL, "MAIN_CLK");
-	return PTR_ERR_OR_ZERO(policy->clk);
+	if (IS_ERR(policy->clk))
+		return PTR_ERR(policy->clk);
+	return 0;
 }
 
 static struct cpufreq_driver ucv2_driver = {

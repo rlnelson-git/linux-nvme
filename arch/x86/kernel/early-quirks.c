@@ -17,7 +17,6 @@
 #include <asm/dma.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
-#include <asm/hpet.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/irq_remapping.h>
@@ -241,7 +240,7 @@ static u32 __init intel_stolen_base(int num, int slot, int func, size_t stolen_s
 	return base;
 }
 
-#define KB(x)	((x) * 1024UL)
+#define KB(x)	((x) * 1024)
 #define MB(x)	(KB (KB (x)))
 #define GB(x)	(MB (KB (x)))
 
@@ -531,15 +530,6 @@ static void __init intel_graphics_stolen(int num, int slot, int func)
 	}
 }
 
-static void __init force_disable_hpet(int num, int slot, int func)
-{
-#ifdef CONFIG_HPET_TIMER
-	boot_hpet_disable = 1;
-	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
-#endif
-}
-
-
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -577,12 +567,6 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA, PCI_ANY_ID,
 	  QFLAG_APPLY_ONCE, intel_graphics_stolen },
-	/*
-	 * HPET on current version of Baytrail platform has accuracy
-	 * problems, disable it for now:
-	 */
-	{ PCI_VENDOR_ID_INTEL, 0x0f00,
-		PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, force_disable_hpet},
 	{}
 };
 

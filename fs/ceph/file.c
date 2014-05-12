@@ -1221,6 +1221,9 @@ static long ceph_fallocate(struct file *file, int mode,
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
+	if (IS_SWAPFILE(inode))
+		return -ETXTBSY;
+
 	mutex_lock(&inode->i_mutex);
 
 	if (ceph_snap(inode) != CEPH_NOSNAP) {

@@ -46,7 +46,6 @@ make_install_man    := install-man
 make_install_html   := install-html
 make_install_info   := install-info
 make_install_pdf    := install-pdf
-make_static         := LDFLAGS=-static
 
 # all the NO_* variable combined
 make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
@@ -88,7 +87,6 @@ run += make_install_bin
 # run += make_install_info
 # run += make_install_pdf
 run += make_minimal
-run += make_static
 
 ifneq ($(call has,ctags),)
 run += make_tags

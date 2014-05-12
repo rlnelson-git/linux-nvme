@@ -251,6 +251,7 @@ struct ath_atx_tid {
 
 	s8 bar_index;
 	bool sched;
+	bool paused;
 	bool active;
 };
 

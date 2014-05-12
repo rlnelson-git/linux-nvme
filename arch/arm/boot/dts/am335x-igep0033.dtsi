@@ -118,6 +118,7 @@
 		reg = <0 0 0>; /* CS0, offset 0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
+		gpmc,device-nand = "true";
 		gpmc,device-width = <1>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
@@ -201,7 +202,7 @@
 &usb {
 	status = "okay";
 
-	control@44e10620 {
+	control@44e10000 {
 		status = "okay";
 	};
 
@@ -222,7 +223,7 @@
 		dr_mode = "host";
 	};
 
-	dma-controller@47402000  {
+	dma-controller@07402000  {
 		status = "okay";
 	};
 };

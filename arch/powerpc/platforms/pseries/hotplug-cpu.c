@@ -88,13 +88,12 @@ void set_default_offline_state(int cpu)
 
 static void rtas_stop_self(void)
 {
-	static struct rtas_args args = {
+	struct rtas_args args = {
+		.token = cpu_to_be32(rtas_stop_self_token),
 		.nargs = 0,
 		.nret = 1,
 		.rets = &args.args[0],
 	};
-
-	args.token = cpu_to_be32(rtas_stop_self_token);
 
 	local_irq_disable();
 

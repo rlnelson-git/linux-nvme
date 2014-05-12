@@ -27,21 +27,24 @@
 struct vexpress_hwmon_data {
 	struct device *hwmon_dev;
 	struct vexpress_config_func *func;
-	const char *name;
 };
 
 static ssize_t vexpress_hwmon_name_show(struct device *dev,
 		struct device_attribute *dev_attr, char *buffer)
 {
-	struct vexpress_hwmon_data *data = dev_get_drvdata(dev);
+	const char *compatible = of_get_property(dev->of_node, "compatible",
+			NULL);
 
-	return sprintf(buffer, "%s\n", data->name);
+	return sprintf(buffer, "%s\n", compatible);
 }
 
 static ssize_t vexpress_hwmon_label_show(struct device *dev,
 		struct device_attribute *dev_attr, char *buffer)
 {
 	const char *label = of_get_property(dev->of_node, "label", NULL);
+
+	if (!label)
+		return -ENOENT;
 
 	return snprintf(buffer, PAGE_SIZE, "%s\n", label);
 }
@@ -81,20 +84,6 @@ static ssize_t vexpress_hwmon_u64_show(struct device *dev,
 			to_sensor_dev_attr(dev_attr)->index));
 }
 
-static umode_t vexpress_hwmon_attr_is_visible(struct kobject *kobj,
-		struct attribute *attr, int index)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct device_attribute *dev_attr = container_of(attr,
-				struct device_attribute, attr);
-
-	if (dev_attr->show == vexpress_hwmon_label_show &&
-			!of_get_property(dev->of_node, "label", NULL))
-		return 0;
-
-	return attr->mode;
-}
-
 static DEVICE_ATTR(name, S_IRUGO, vexpress_hwmon_name_show, NULL);
 
 #define VEXPRESS_HWMON_ATTRS(_name, _label_attr, _input_attr)	\
@@ -105,26 +94,13 @@ struct attribute *vexpress_hwmon_attrs_##_name[] = {		\
 	NULL							\
 }
 
-struct vexpress_hwmon_type {
-	const char *name;
-	const struct attribute_group **attr_groups;
-};
-
 #if !defined(CONFIG_REGULATOR_VEXPRESS)
 static DEVICE_ATTR(in1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, vexpress_hwmon_u32_show,
 		NULL, 1000);
 static VEXPRESS_HWMON_ATTRS(volt, in1_label, in1_input);
 static struct attribute_group vexpress_hwmon_group_volt = {
-	.is_visible = vexpress_hwmon_attr_is_visible,
 	.attrs = vexpress_hwmon_attrs_volt,
-};
-static struct vexpress_hwmon_type vexpress_hwmon_volt = {
-	.name = "vexpress_volt",
-	.attr_groups = (const struct attribute_group *[]) {
-		&vexpress_hwmon_group_volt,
-		NULL,
-	},
 };
 #endif
 
@@ -133,15 +109,7 @@ static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, vexpress_hwmon_u32_show,
 		NULL, 1000);
 static VEXPRESS_HWMON_ATTRS(amp, curr1_label, curr1_input);
 static struct attribute_group vexpress_hwmon_group_amp = {
-	.is_visible = vexpress_hwmon_attr_is_visible,
 	.attrs = vexpress_hwmon_attrs_amp,
-};
-static struct vexpress_hwmon_type vexpress_hwmon_amp = {
-	.name = "vexpress_amp",
-	.attr_groups = (const struct attribute_group *[]) {
-		&vexpress_hwmon_group_amp,
-		NULL
-	},
 };
 
 static DEVICE_ATTR(temp1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
@@ -149,15 +117,7 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, vexpress_hwmon_u32_show,
 		NULL, 1000);
 static VEXPRESS_HWMON_ATTRS(temp, temp1_label, temp1_input);
 static struct attribute_group vexpress_hwmon_group_temp = {
-	.is_visible = vexpress_hwmon_attr_is_visible,
 	.attrs = vexpress_hwmon_attrs_temp,
-};
-static struct vexpress_hwmon_type vexpress_hwmon_temp = {
-	.name = "vexpress_temp",
-	.attr_groups = (const struct attribute_group *[]) {
-		&vexpress_hwmon_group_temp,
-		NULL
-	},
 };
 
 static DEVICE_ATTR(power1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
@@ -165,15 +125,7 @@ static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, vexpress_hwmon_u32_show,
 		NULL, 1);
 static VEXPRESS_HWMON_ATTRS(power, power1_label, power1_input);
 static struct attribute_group vexpress_hwmon_group_power = {
-	.is_visible = vexpress_hwmon_attr_is_visible,
 	.attrs = vexpress_hwmon_attrs_power,
-};
-static struct vexpress_hwmon_type vexpress_hwmon_power = {
-	.name = "vexpress_power",
-	.attr_groups = (const struct attribute_group *[]) {
-		&vexpress_hwmon_group_power,
-		NULL
-	},
 };
 
 static DEVICE_ATTR(energy1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
@@ -181,36 +133,28 @@ static SENSOR_DEVICE_ATTR(energy1_input, S_IRUGO, vexpress_hwmon_u64_show,
 		NULL, 1);
 static VEXPRESS_HWMON_ATTRS(energy, energy1_label, energy1_input);
 static struct attribute_group vexpress_hwmon_group_energy = {
-	.is_visible = vexpress_hwmon_attr_is_visible,
 	.attrs = vexpress_hwmon_attrs_energy,
-};
-static struct vexpress_hwmon_type vexpress_hwmon_energy = {
-	.name = "vexpress_energy",
-	.attr_groups = (const struct attribute_group *[]) {
-		&vexpress_hwmon_group_energy,
-		NULL
-	},
 };
 
 static struct of_device_id vexpress_hwmon_of_match[] = {
 #if !defined(CONFIG_REGULATOR_VEXPRESS)
 	{
 		.compatible = "arm,vexpress-volt",
-		.data = &vexpress_hwmon_volt,
+		.data = &vexpress_hwmon_group_volt,
 	},
 #endif
 	{
 		.compatible = "arm,vexpress-amp",
-		.data = &vexpress_hwmon_amp,
+		.data = &vexpress_hwmon_group_amp,
 	}, {
 		.compatible = "arm,vexpress-temp",
-		.data = &vexpress_hwmon_temp,
+		.data = &vexpress_hwmon_group_temp,
 	}, {
 		.compatible = "arm,vexpress-power",
-		.data = &vexpress_hwmon_power,
+		.data = &vexpress_hwmon_group_power,
 	}, {
 		.compatible = "arm,vexpress-energy",
-		.data = &vexpress_hwmon_energy,
+		.data = &vexpress_hwmon_group_energy,
 	},
 	{}
 };
@@ -221,7 +165,6 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 	int err;
 	const struct of_device_id *match;
 	struct vexpress_hwmon_data *data;
-	const struct vexpress_hwmon_type *type;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -231,14 +174,12 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 	match = of_match_device(vexpress_hwmon_of_match, &pdev->dev);
 	if (!match)
 		return -ENODEV;
-	type = match->data;
-	data->name = type->name;
 
 	data->func = vexpress_config_func_get_by_dev(&pdev->dev);
 	if (!data->func)
 		return -ENODEV;
 
-	err = sysfs_create_groups(&pdev->dev.kobj, type->attr_groups);
+	err = sysfs_create_group(&pdev->dev.kobj, match->data);
 	if (err)
 		goto error;
 

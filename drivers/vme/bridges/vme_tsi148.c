@@ -320,7 +320,7 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	struct pci_dev *pdev;
 	struct tsi148_driver *bridge;
 
-	pdev = to_pci_dev(tsi148_bridge->parent);
+	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
 
 	bridge = tsi148_bridge->driver_priv;
 
@@ -433,7 +433,9 @@ static void tsi148_irq_set(struct vme_bridge *tsi148_bridge, int level,
 		iowrite32be(tmp, bridge->base + TSI148_LCSR_INTEO);
 
 		if (sync != 0) {
-			pdev = to_pci_dev(tsi148_bridge->parent);
+			pdev = container_of(tsi148_bridge->parent,
+				struct pci_dev, dev);
+
 			synchronize_irq(pdev->irq);
 		}
 	} else {
@@ -739,7 +741,7 @@ static int tsi148_slave_get(struct vme_slave_resource *image, int *enabled,
 	reg_join(vme_bound_high, vme_bound_low, &vme_bound);
 	reg_join(pci_offset_high, pci_offset_low, &pci_offset);
 
-	*pci_base = (dma_addr_t)(*vme_base + pci_offset);
+	*pci_base = (dma_addr_t)vme_base + pci_offset;
 
 	*enabled = 0;
 	*aspace = 0;
@@ -812,7 +814,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 
 	tsi148_bridge = image->parent;
 
-	pdev = to_pci_dev(tsi148_bridge->parent);
+	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -908,14 +910,10 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 	unsigned long long pci_bound, vme_offset, pci_base;
 	struct vme_bridge *tsi148_bridge;
 	struct tsi148_driver *bridge;
-	struct pci_bus_region region;
-	struct pci_dev *pdev;
 
 	tsi148_bridge = image->parent;
 
 	bridge = tsi148_bridge->driver_priv;
-
-	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
@@ -951,9 +949,7 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		pci_bound = 0;
 		vme_offset = 0;
 	} else {
-		pcibios_resource_to_bus(pdev->bus, &region,
-					&image->bus_resource);
-		pci_base = region.start;
+		pci_base = (unsigned long long)image->bus_resource.start;
 
 		/*
 		 * Bound address is a valid address for the window, adjust
@@ -2236,7 +2232,7 @@ static void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = to_pci_dev(parent);
+	pdev = container_of(parent, struct pci_dev, dev);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -2247,7 +2243,7 @@ static void tsi148_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = to_pci_dev(parent);
+	pdev = container_of(parent, struct pci_dev, dev);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }

@@ -11,7 +11,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
-#include <linux/clk.h>
 
 /* STATUS and ENABLE Register bit masks */
 #define TXINT_MASK	(1<<0)	/* Transmit interrupt */
@@ -132,7 +131,6 @@ struct arc_emac_priv {
 	struct mii_bus *bus;
 
 	void __iomem *regs;
-	struct clk *clk;
 
 	struct napi_struct napi;
 	struct net_device_stats stats;

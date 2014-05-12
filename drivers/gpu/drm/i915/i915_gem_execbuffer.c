@@ -1221,7 +1221,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto err;
 
-	ret = i915_switch_context(ring, ctx);
+	ret = i915_switch_context(ring, file, ctx);
 	if (ret)
 		goto err;
 

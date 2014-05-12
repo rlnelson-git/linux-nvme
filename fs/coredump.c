@@ -73,15 +73,10 @@ static int expand_corename(struct core_name *cn, int size)
 static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
 {
 	int free, need;
-	va_list arg_copy;
 
 again:
 	free = cn->size - cn->used;
-
-	va_copy(arg_copy, arg);
-	need = vsnprintf(cn->corename + cn->used, free, fmt, arg_copy);
-	va_end(arg_copy);
-
+	need = vsnprintf(cn->corename + cn->used, free, fmt, arg);
 	if (need < free) {
 		cn->used += need;
 		return 0;

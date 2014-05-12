@@ -19,16 +19,12 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
-#if defined(CONFIG_CPU_PJ4) || defined(CONFIG_CPU_PJ4B)
+#if defined(CONFIG_CPU_PJ4)
 #define PJ4(code...)		code
 #define XSC(code...)
-#elif defined(CONFIG_CPU_MOHAWK) || \
-	defined(CONFIG_CPU_XSC3) || \
-	defined(CONFIG_CPU_XSCALE)
+#else
 #define PJ4(code...)
 #define XSC(code...)		code
-#else
-#error "Unsupported iWMMXt architecture"
 #endif
 
 #define MMX_WR0		 	(0x00)

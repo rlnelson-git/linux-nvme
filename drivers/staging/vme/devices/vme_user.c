@@ -776,8 +776,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
 		if (image[i].kern_buf == NULL) {
 			err = -ENOMEM;
-			vme_master_free(image[i].resource);
-			goto err_master;
+			goto err_master_buf;
 		}
 	}
 
@@ -820,6 +819,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 	return 0;
 
+	/* Ensure counter set correcty to destroy all sysfs devices */
+	i = VME_DEVS;
 err_sysfs:
 	while (i > 0) {
 		i--;
@@ -829,10 +830,12 @@ err_sysfs:
 
 	/* Ensure counter set correcty to unalloc all master windows */
 	i = MASTER_MAX + 1;
+err_master_buf:
+	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
+		kfree(image[i].kern_buf);
 err_master:
 	while (i > MASTER_MINOR) {
 		i--;
-		kfree(image[i].kern_buf);
 		vme_master_free(image[i].resource);
 	}
 

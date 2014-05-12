@@ -222,22 +222,22 @@ static inline int cpu_is_xsc3(void)
 #endif
 
 /*
- * Marvell's PJ4 and PJ4B cores are based on V7 version,
- * but require a specical sequence for enabling coprocessors.
- * For this reason, we need a way to distinguish them.
+ * Marvell's PJ4 core is based on V7 version. It has some modification
+ * for coprocessor setting. For this reason, we need a way to distinguish
+ * it.
  */
-#if defined(CONFIG_CPU_PJ4) || defined(CONFIG_CPU_PJ4B)
+#ifndef CONFIG_CPU_PJ4
+#define cpu_is_pj4()	0
+#else
 static inline int cpu_is_pj4(void)
 {
 	unsigned int id;
 
 	id = read_cpuid_id();
-	if ((id & 0xff0fff00) == 0x560f5800)
+	if ((id & 0xfffffff0) == 0x562f5840)
 		return 1;
 
 	return 0;
 }
-#else
-#define cpu_is_pj4()	0
 #endif
 #endif

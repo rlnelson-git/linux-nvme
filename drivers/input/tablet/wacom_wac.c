@@ -178,9 +178,10 @@ static int wacom_ptu_irq(struct wacom_wac *wacom)
 
 static int wacom_dtu_irq(struct wacom_wac *wacom)
 {
-	unsigned char *data = wacom->data;
+	struct wacom_features *features = &wacom->features;
+	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	int prox = data[1] & 0x20;
+	int prox = data[1] & 0x20, pressure;
 
 	dev_dbg(input->dev.parent,
 		"%s: received report #%d", __func__, data[0]);
@@ -197,7 +198,10 @@ static int wacom_dtu_irq(struct wacom_wac *wacom)
 	input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
 	input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
 	input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
-	input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x01) << 8) | data[6]);
+	pressure = ((data[7] & 0x01) << 8) | data[6];
+	if (pressure < 0)
+		pressure = features->pressure_max + pressure + 1;
+	input_report_abs(input, ABS_PRESSURE, pressure);
 	input_report_key(input, BTN_TOUCH, data[1] & 0x05);
 	if (!prox) /* out-prox */
 		wacom->id[0] = 0;
@@ -902,7 +906,7 @@ static int int_dist(int x1, int y1, int x2, int y2)
 static int wacom_24hdt_irq(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
-	unsigned char *data = wacom->data;
+	char *data = wacom->data;
 	int i;
 	int current_num_contacts = data[61];
 	int contacts_to_send = 0;
@@ -955,7 +959,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 static int wacom_mt_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
-	unsigned char *data = wacom->data;
+	char *data = wacom->data;
 	int i;
 	int current_num_contacts = data[2];
 	int contacts_to_send = 0;
@@ -1034,7 +1038,7 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 
 static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 {
-	unsigned char *data = wacom->data;
+	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
 	bool prox;
 	int x = 0, y = 0;
@@ -1070,8 +1074,10 @@ static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 
 static int wacom_tpc_pen(struct wacom_wac *wacom)
 {
-	unsigned char *data = wacom->data;
+	struct wacom_features *features = &wacom->features;
+	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
+	int pressure;
 	bool prox = data[1] & 0x20;
 
 	if (!wacom->shared->stylus_in_proximity) /* first in prox */
@@ -1087,7 +1093,10 @@ static int wacom_tpc_pen(struct wacom_wac *wacom)
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
 		input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
 		input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
-		input_report_abs(input, ABS_PRESSURE, ((data[7] & 0x03) << 8) | data[6]);
+		pressure = ((data[7] & 0x01) << 8) | data[6];
+		if (pressure < 0)
+			pressure = features->pressure_max + pressure + 1;
+		input_report_abs(input, ABS_PRESSURE, pressure);
 		input_report_key(input, BTN_TOUCH, data[1] & 0x05);
 		input_report_key(input, wacom->tool[0], prox);
 		return 1;
@@ -1098,7 +1107,7 @@ static int wacom_tpc_pen(struct wacom_wac *wacom)
 
 static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 {
-	unsigned char *data = wacom->data;
+	char *data = wacom->data;
 
 	dev_dbg(wacom->input->dev.parent,
 		"%s: received report #%d\n", __func__, data[0]);
@@ -1829,7 +1838,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTU:
 		if (features->type == DTUS) {
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			for (i = 0; i < 4; i++)
+			for (i = 0; i < 3; i++)
 				__set_bit(BTN_0 + i, input_dev->keybit);
 		}
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);

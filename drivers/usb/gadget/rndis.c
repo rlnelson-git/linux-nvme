@@ -35,7 +35,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include "u_rndis.h"
 
 #undef	VERBOSE_DEBUG
 

@@ -1548,10 +1548,8 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap, u32 pps,
 		return;
 
 	for (i = 0; i < len; i++) {
-		int osd = osds[i];
-
-		if (osd != CRUSH_ITEM_NONE &&
-		    osdmap->osd_primary_affinity[osd] !=
+		if (osds[i] != CRUSH_ITEM_NONE &&
+		    osdmap->osd_primary_affinity[i] !=
 					CEPH_OSD_DEFAULT_PRIMARY_AFFINITY) {
 			break;
 		}
@@ -1565,9 +1563,10 @@ static void apply_primary_affinity(struct ceph_osdmap *osdmap, u32 pps,
 	 * osd's pgs get rejected as primary.
 	 */
 	for (i = 0; i < len; i++) {
-		int osd = osds[i];
+		int osd;
 		u32 aff;
 
+		osd = osds[i];
 		if (osd == CRUSH_ITEM_NONE)
 			continue;
 

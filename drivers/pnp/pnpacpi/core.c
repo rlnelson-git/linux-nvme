@@ -83,7 +83,8 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 {
 	struct acpi_device *acpi_dev;
 	acpi_handle handle;
-	int ret = 0;
+	struct acpi_buffer buffer;
+	int ret;
 
 	pnp_dbg(&dev->dev, "set resources\n");
 
@@ -96,26 +97,19 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	if (WARN_ON_ONCE(acpi_dev != dev->data))
 		dev->data = acpi_dev;
 
-	if (acpi_has_method(handle, METHOD_NAME__SRS)) {
-		struct acpi_buffer buffer;
-
-		ret = pnpacpi_build_resource_template(dev, &buffer);
-		if (ret)
-			return ret;
-
-		ret = pnpacpi_encode_resources(dev, &buffer);
-		if (!ret) {
-			acpi_status status;
-
-			status = acpi_set_current_resources(handle, &buffer);
-			if (ACPI_FAILURE(status))
-				ret = -EIO;
-		}
+	ret = pnpacpi_build_resource_template(dev, &buffer);
+	if (ret)
+		return ret;
+	ret = pnpacpi_encode_resources(dev, &buffer);
+	if (ret) {
 		kfree(buffer.pointer);
+		return ret;
 	}
-	if (!ret && acpi_bus_power_manageable(handle))
+	if (ACPI_FAILURE(acpi_set_current_resources(handle, &buffer)))
+		ret = -EINVAL;
+	else if (acpi_bus_power_manageable(handle))
 		ret = acpi_bus_set_power(handle, ACPI_STATE_D0);
-
+	kfree(buffer.pointer);
 	return ret;
 }
 
@@ -123,7 +117,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 {
 	struct acpi_device *acpi_dev;
 	acpi_handle handle;
-	acpi_status status;
+	int ret;
 
 	dev_dbg(&dev->dev, "disable resources\n");
 
@@ -134,15 +128,13 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	}
 
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
+	ret = 0;
 	if (acpi_bus_power_manageable(handle))
 		acpi_bus_set_power(handle, ACPI_STATE_D3_COLD);
-
-	/* continue even if acpi_bus_set_power() fails */
-	status = acpi_evaluate_object(handle, "_DIS", NULL, NULL);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
-		return -ENODEV;
-
-	return 0;
+		/* continue even if acpi_bus_set_power() fails */
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DIS", NULL, NULL)))
+		ret = -ENODEV;
+	return ret;
 }
 
 #ifdef CONFIG_ACPI_SLEEP

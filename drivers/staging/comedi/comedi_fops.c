@@ -1926,21 +1926,14 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
-	struct comedi_buf_map *bm = NULL;
+	struct comedi_buf_map *bm;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
 	int retval;
 
-	/*
-	 * 'trylock' avoids circular dependency with current->mm->mmap_sem
-	 * and down-reading &dev->attach_lock should normally succeed without
-	 * contention unless the device is in the process of being attached
-	 * or detached.
-	 */
-	if (!down_read_trylock(&dev->attach_lock))
-		return -EAGAIN;
+	mutex_lock(&dev->mutex);
 
 	if (!dev->attached) {
 		dev_dbg(dev->class_dev, "no driver attached\n");
@@ -1980,9 +1973,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	n_pages = size >> PAGE_SHIFT;
-
-	/* get reference to current buf map (if any) */
-	bm = comedi_buf_map_from_subdev_get(s);
+	bm = async->buf_map;
 	if (!bm || n_pages > bm->n_pages) {
 		retval = -EINVAL;
 		goto done;
@@ -2006,8 +1997,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	retval = 0;
 done:
-	up_read(&dev->attach_lock);
-	comedi_buf_map_put(bm);	/* put reference to buf map - okay if NULL */
+	mutex_unlock(&dev->mutex);
 	return retval;
 }
 

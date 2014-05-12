@@ -137,8 +137,6 @@ unlock:
 	/* Publish this device. */
 	if (!err)
 		err = publish_cb(pdev, 0, 0, PCI_DEVFN(slot, func), devid);
-	else
-		kfree(dev_entry);
 
 out:
 	return err;

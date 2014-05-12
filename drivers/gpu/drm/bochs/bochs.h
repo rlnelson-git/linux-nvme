@@ -1,6 +1,5 @@
 #include <linux/io.h>
 #include <linux/fb.h>
-#include <linux/console.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -88,6 +87,8 @@ struct bochs_device {
 		struct bochs_framebuffer gfb;
 		struct drm_fb_helper helper;
 		int size;
+		int x1, y1, x2, y2; /* dirty rect */
+		spinlock_t dirty_lock;
 		bool initialized;
 	} fb;
 };

@@ -48,18 +48,14 @@ void __init kernfs_inode_init(void)
 
 static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
-	static DEFINE_MUTEX(iattr_mutex);
-	struct kernfs_iattrs *ret;
 	struct iattr *iattrs;
 
-	mutex_lock(&iattr_mutex);
-
 	if (kn->iattr)
-		goto out_unlock;
+		return kn->iattr;
 
 	kn->iattr = kzalloc(sizeof(struct kernfs_iattrs), GFP_KERNEL);
 	if (!kn->iattr)
-		goto out_unlock;
+		return NULL;
 	iattrs = &kn->iattr->ia_iattr;
 
 	/* assign default attributes */
@@ -69,10 +65,8 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 	iattrs->ia_atime = iattrs->ia_mtime = iattrs->ia_ctime = CURRENT_TIME;
 
 	simple_xattrs_init(&kn->iattr->xattrs);
-out_unlock:
-	ret = kn->iattr;
-	mutex_unlock(&iattr_mutex);
-	return ret;
+
+	return kn->iattr;
 }
 
 static int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)

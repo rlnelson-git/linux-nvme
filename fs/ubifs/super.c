@@ -1556,7 +1556,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (c->space_fixup) {
 		err = ubifs_fixup_free_space(c);
 		if (err)
-			goto out;
+			return err;
 	}
 
 	err = check_free_space(c);

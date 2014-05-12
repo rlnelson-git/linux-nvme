@@ -665,10 +665,7 @@ static void msm_gpio_irq_ack(struct irq_data *d)
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	val = readl(pctrl->regs + g->intr_status_reg);
-	if (g->intr_ack_high)
-		val |= BIT(g->intr_status_bit);
-	else
-		val &= ~BIT(g->intr_status_bit);
+	val &= ~BIT(g->intr_status_bit);
 	writel(val, pctrl->regs + g->intr_status_reg);
 
 	if (test_bit(d->hwirq, pctrl->dual_edge_irqs))
@@ -747,7 +744,6 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 			break;
 		case IRQ_TYPE_EDGE_BOTH:
 			val |= BIT(g->intr_detection_bit);
-			val |= BIT(g->intr_polarity_bit);
 			break;
 		case IRQ_TYPE_LEVEL_LOW:
 			break;

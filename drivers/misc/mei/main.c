@@ -644,7 +644,8 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	mask |= (POLLIN | POLLRDNORM);
+	if (MEI_WRITE_COMPLETE == cl->writing_state)
+		mask |= (POLLIN | POLLRDNORM);
 
 out:
 	mutex_unlock(&dev->device_lock);

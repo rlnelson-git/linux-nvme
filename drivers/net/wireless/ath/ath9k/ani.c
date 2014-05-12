@@ -155,9 +155,6 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 		ATH9K_ANI_RSSI_THR_LOW,
 		ATH9K_ANI_RSSI_THR_HIGH);
 
-	if (AR_SREV_9100(ah) && immunityLevel < ATH9K_ANI_OFDM_DEF_LEVEL)
-		immunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;
-
 	if (!scan)
 		aniState->ofdmNoiseImmunityLevel = immunityLevel;
 
@@ -237,9 +234,6 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel,
 		aniState->cckNoiseImmunityLevel, immunityLevel,
 		BEACON_RSSI(ah), ATH9K_ANI_RSSI_THR_LOW,
 		ATH9K_ANI_RSSI_THR_HIGH);
-
-	if (AR_SREV_9100(ah) && immunityLevel < ATH9K_ANI_CCK_DEF_LEVEL)
-		immunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_LOW &&

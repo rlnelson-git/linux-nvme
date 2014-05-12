@@ -155,11 +155,7 @@ struct vsock_transport {
 
 /**** CORE ****/
 
-int __vsock_core_init(const struct vsock_transport *t, struct module *owner);
-static inline int vsock_core_init(const struct vsock_transport *t)
-{
-	return __vsock_core_init(t, THIS_MODULE);
-}
+int vsock_core_init(const struct vsock_transport *t);
 void vsock_core_exit(void);
 
 /**** UTILS ****/

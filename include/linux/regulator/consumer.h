@@ -258,14 +258,14 @@ regulator_get_exclusive(struct device *dev, const char *id)
 static inline struct regulator *__must_check
 regulator_get_optional(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
 
 
 static inline struct regulator *__must_check
 devm_regulator_get_optional(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
 
 static inline void regulator_put(struct regulator *regulator)

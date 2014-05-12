@@ -124,15 +124,15 @@ xfs_cleanup_inode(
 	xfs_dentry_to_name(&teardown, dentry, 0);
 
 	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
+	iput(inode);
 }
 
 STATIC int
-xfs_generic_create(
+xfs_vn_mknod(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
-	dev_t		rdev,
-	bool		tmpfile)	/* unnamed file */
+	dev_t		rdev)
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
@@ -156,12 +156,8 @@ xfs_generic_create(
 	if (error)
 		return error;
 
-	if (!tmpfile) {
-		xfs_dentry_to_name(&name, dentry, mode);
-		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
-	} else {
-		error = xfs_create_tmpfile(XFS_I(dir), dentry, mode, &ip);
-	}
+	xfs_dentry_to_name(&name, dentry, mode);
+	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	if (unlikely(error))
 		goto out_free_acl;
 
@@ -184,11 +180,7 @@ xfs_generic_create(
 	}
 #endif
 
-	if (tmpfile)
-		d_tmpfile(dentry, inode);
-	else
-		d_instantiate(dentry, inode);
-
+	d_instantiate(dentry, inode);
  out_free_acl:
 	if (default_acl)
 		posix_acl_release(default_acl);
@@ -197,20 +189,8 @@ xfs_generic_create(
 	return -error;
 
  out_cleanup_inode:
-	if (!tmpfile)
-		xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
+	xfs_cleanup_inode(dir, inode, dentry);
 	goto out_free_acl;
-}
-
-STATIC int
-xfs_vn_mknod(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode,
-	dev_t		rdev)
-{
-	return xfs_generic_create(dir, dentry, mode, rdev, false);
 }
 
 STATIC int
@@ -373,7 +353,6 @@ xfs_vn_symlink(
 
  out_cleanup_inode:
 	xfs_cleanup_inode(dir, inode, dentry);
-	iput(inode);
  out:
 	return -error;
 }
@@ -1074,7 +1053,11 @@ xfs_vn_tmpfile(
 	struct dentry	*dentry,
 	umode_t		mode)
 {
-	return xfs_generic_create(dir, dentry, mode, 0, true);
+	int		error;
+
+	error = xfs_create_tmpfile(XFS_I(dir), dentry, mode);
+
+	return -error;
 }
 
 static const struct inode_operations xfs_inode_operations = {

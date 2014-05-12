@@ -531,9 +531,7 @@ static int do_flash_update(struct genwqe_file *cfile,
 	case '1':
 		cmdopts = 0x1C;
 		break;		/* download/erase_first/part_1 */
-	case 'v':
-		cmdopts = 0x0C;
-		break;		/* download/erase_first/vpd */
+	case 'v':		/* cmdopts = 0x0c (VPD) */
 	default:
 		return -EINVAL;
 	}
@@ -667,8 +665,6 @@ static int do_flash_read(struct genwqe_file *cfile,
 		cmdopts = 0x1A;
 		break;		/* upload/part_1 */
 	case 'v':
-		cmdopts = 0x0A;
-		break;		/* upload/vpd */
 	default:
 		return -EINVAL;
 	}
@@ -840,8 +836,15 @@ static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 			__genwqe_del_mapping(cfile, dma_map);
 			genwqe_user_vunmap(cd, dma_map, req);
 		}
-		if (req->sgls[i].sgl != NULL)
-			genwqe_free_sync_sgl(cd, &req->sgls[i]);
+		if (req->sgl[i] != NULL) {
+			genwqe_free_sgl(cd, req->sgl[i],
+				       req->sgl_dma_addr[i],
+				       req->sgl_size[i]);
+			req->sgl[i] = NULL;
+			req->sgl_dma_addr[i] = 0x0;
+			req->sgl_size[i] = 0;
+		}
+
 	}
 	return 0;
 }
@@ -910,7 +913,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		case ATS_TYPE_SGL_RDWR:
 		case ATS_TYPE_SGL_RD: {
-			int page_offs;
+			int page_offs, nr_pages, offs;
 
 			u_addr = be64_to_cpu(*((__be64 *)
 					       &cmd->asiv[asiv_offs]));
@@ -948,18 +951,27 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 				page_offs = 0;
 			}
 
-			/* create genwqe style scatter gather list */
-			rc = genwqe_alloc_sync_sgl(cd, &req->sgls[i],
-						   (void __user *)u_addr,
-						   u_size);
-			if (rc != 0)
-				goto err_out;
+			offs = offset_in_page(u_addr);
+			nr_pages = DIV_ROUND_UP(offs + u_size, PAGE_SIZE);
 
-			genwqe_setup_sgl(cd, &req->sgls[i],
-					 &m->dma_list[page_offs]);
+			/* create genwqe style scatter gather list */
+			req->sgl[i] = genwqe_alloc_sgl(cd, m->nr_pages,
+						      &req->sgl_dma_addr[i],
+						      &req->sgl_size[i]);
+			if (req->sgl[i] == NULL) {
+				rc = -ENOMEM;
+				goto err_out;
+			}
+			genwqe_setup_sgl(cd, offs, u_size,
+					req->sgl[i],
+					req->sgl_dma_addr[i],
+					req->sgl_size[i],
+					m->dma_list,
+					page_offs,
+					nr_pages);
 
 			*((__be64 *)&cmd->asiv[asiv_offs]) =
-				cpu_to_be64(req->sgls[i].sgl_dma_addr);
+				cpu_to_be64(req->sgl_dma_addr[i]);
 
 			break;
 		}

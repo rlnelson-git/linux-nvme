@@ -594,13 +594,9 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	ret = ata_host_activate(host, info->irq,
-				info->irq ? pata_s3c_irq : NULL,
-				0, &pata_s3c_sht);
-	if (ret)
-		goto stop_clk;
-
-	return 0;
+	return ata_host_activate(host, info->irq,
+			info->irq ? pata_s3c_irq : NULL,
+			0, &pata_s3c_sht);
 
 stop_clk:
 	clk_disable(info->clk);

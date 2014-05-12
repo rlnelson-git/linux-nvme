@@ -1296,7 +1296,7 @@ static struct resource adc_resources[] = {
 };
 
 static struct platform_device at91_adc_device = {
-	.name		= "at91sam9260-adc",
+	.name		= "at91_adc",
 	.id		= -1,
 	.dev		= {
 				.platform_data		= &adc_data,

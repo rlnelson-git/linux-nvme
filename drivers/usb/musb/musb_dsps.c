@@ -470,9 +470,8 @@ static int dsps_musb_exit(struct musb *musb)
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
 	del_timer_sync(&glue->timer);
-	usb_phy_shutdown(musb->xceiv);
-	debugfs_remove_recursive(glue->dbgfs_root);
 
+	usb_phy_shutdown(musb->xceiv);
 	return 0;
 }
 
@@ -708,6 +707,8 @@ static int dsps_remove(struct platform_device *pdev)
 	/* disable usbss clocks */
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	debugfs_remove_recursive(glue->dbgfs_root);
 
 	return 0;
 }
