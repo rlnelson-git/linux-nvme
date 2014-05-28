@@ -280,17 +280,27 @@ void put_nvmeq(struct nvme_queue *nvmeq)
 	put_cpu();
 }
 
-void write_doorbell(u16 value, u32 __iomem* q_db,
-                    u32* db_addr, volatile u32* event_idx) {
-  if (db_addr) {
-    u32 eventidx = *event_idx;
-    *db_addr = value;
-    if (eventidx <= value) {
+static inline int nvme_need_event(u16 event_idx, u16 new_idx, u16 old) {
+    /* Borrowed from vring_need_event */
+    return (u16)(new_idx - event_idx - 1) < (u16)(new_idx - old);
+}
+
+static void write_doorbell(u16 value, u32 __iomem* q_db,
+                           u32* db_addr, volatile u32* event_idx) {
+  u16 old_value;
+  if (!db_addr)
+    goto ring_doorbell;
+
+  old_value = *db_addr;
+  *db_addr = value;
+
+  if (!nvme_need_event(*event_idx, value, old_value))
+    goto no_doorbell;
+
+  ring_doorbell:
       writel(value, q_db);
-    }
-  } else {
-      writel(value, q_db);
-  }
+  no_doorbell:
+      return;
 }
 
 /**
@@ -1203,7 +1213,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->cq_vector = vector;
 	nvmeq->qid = qid;
 	nvmeq->q_suspended = 1;
-        if (dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE) {
+        if (dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE && qid != 0) {
           nvmeq->sq_doorbell_addr = &dev->db_mem[qid * 2 * dev->db_stride];
           nvmeq->cq_doorbell_addr = &nvmeq->sq_doorbell_addr[1];
           nvmeq->sq_eventidx_addr = &dev->ei_mem[qid * 2 * dev->db_stride];
@@ -1241,7 +1251,7 @@ static void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
 	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
-        if (dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE) {
+        if (dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE && qid != 0) {
           nvmeq->sq_doorbell_addr = &dev->db_mem[qid * 2 * dev->db_stride];
           nvmeq->cq_doorbell_addr = &nvmeq->sq_doorbell_addr[1];
           nvmeq->sq_eventidx_addr = &dev->ei_mem[qid * 2 * dev->db_stride];
