@@ -97,6 +97,10 @@ struct nvme_dev {
 	u16 oncs;
 	u16 abort_limit;
 	u8 initialized;
+	u32* db_mem;
+	dma_addr_t doorbell;
+	u32* ei_mem;
+	dma_addr_t eventidx;
 };
 
 /*
