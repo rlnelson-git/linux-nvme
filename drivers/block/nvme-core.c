@@ -48,7 +48,7 @@
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define ADMIN_TIMEOUT	(60 * HZ)
 
-/* Google Vendor ID not in include/linux/pci_ids.h */
+/* Google Vendor ID is not in include/linux/pci_ids.h */
 #define PCI_VENDOR_ID_GOOGLE 0x1AE0
 
 static int nvme_major;
@@ -318,7 +318,7 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
 	tail = nvmeq->sq_tail;
 	memcpy(&nvmeq->sq_cmds[tail], cmd, sizeof(*cmd));
-	if (nvmeq->dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE)
+	if (nvmeq->sq_doorbell_addr)
 		wmb();
 	if (++tail == nvmeq->q_depth)
 		tail = 0;
@@ -425,7 +425,7 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 		bio_endio(bio, 0);
 }
 
-/* length is in bytes.	gfp flags indicates whether we may sleep. */
+/* length is in bytes. gfp flags indicates whether we may sleep. */
 int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
 			struct nvme_iod *iod, int total_len, gfp_t gfp)
 {
@@ -601,7 +601,7 @@ static int nvme_submit_discard(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmnd->dsm.prp1 = cpu_to_le64(iod->first_dma);
 	cmnd->dsm.nr = 0;
 	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
-	if (nvmeq->dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE)
+	if (nvmeq->sq_doorbell_addr)
 		wmb();
 
 	if (++nvmeq->sq_tail == nvmeq->q_depth)
@@ -1571,7 +1571,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	/*
 	 * Since nvme_submit_sync_cmd sleeps, we can't keep preemption
 	 * disabled.  We may be preempted at any point, and be rescheduled
-	 * to a different CPU.	That will cause cacheline bouncing, but no
+	 * to a different CPU. That will cause cacheline bouncing, but no
 	 * additional races since q_lock already protects against other CPUs.
 	 */
 	put_nvmeq(nvmeq);
@@ -2067,7 +2067,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 							dma_addr + 4096, NULL);
 		if (res)
 			memset(mem + 4096, 0, 4096);
-ns = nvme_alloc_ns(dev, i, mem, mem + 4096);
+		ns = nvme_alloc_ns(dev, i, mem, mem + 4096);
 		if (ns)
 			list_add_tail(&ns->list, &dev->namespaces);
 	}
@@ -2113,7 +2113,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
 
 	if (pdev->vendor == PCI_VENDOR_ID_GOOGLE) {
-		const int mem_size = nvme_vendor_memory_size(dev);
+		int mem_size = nvme_vendor_memory_size(dev);
 		dev->db_mem = dma_alloc_coherent(&pdev->dev, mem_size, &dev->doorbell, GFP_KERNEL);
 		if (!dev->db_mem) {
 			result = -ENOMEM;
@@ -2142,7 +2142,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 
 static void nvme_dev_unmap(struct nvme_dev *dev)
 {
-	const int mem_size = nvme_vendor_memory_size(dev);
+	int mem_size = nvme_vendor_memory_size(dev);
 	if (!dev->db_mem)
 		dma_free_coherent(&dev->pci_dev->dev, mem_size, dev->db_mem, dev->doorbell);
 	if (!dev->ei_mem)
