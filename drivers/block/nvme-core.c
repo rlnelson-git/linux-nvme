@@ -1224,7 +1224,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->cq_vector = vector;
 	nvmeq->qid = qid;
 	nvmeq->q_suspended = 1;
-	if (dev->pci_dev->vendor == PCI_VENDOR_ID_GOOGLE && qid != 0) {
+	if (dev->db_mem && dev->ei_mem && qid != 0) {
 		nvmeq->sq_doorbell_addr = &dev->db_mem[qid * 2 * dev->db_stride];
 		nvmeq->cq_doorbell_addr =
 			&dev->db_mem[(qid * 2 + 1) * dev->db_stride];
@@ -2038,6 +2038,8 @@ static int nvme_dev_add(struct nvme_dev *dev)
 			// Free memory and continue on.
 			dma_free_coherent(&pdev->dev, 8192, dev->db_mem, dev->doorbell);
 			dma_free_coherent(&pdev->dev, 8192, dev->ei_mem, dev->doorbell);
+			dev->db_mem = 0;
+			dev->ei_mem = 0;
 		}
 	}
 
@@ -2130,6 +2132,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 
  dma_free:
 	dma_free_coherent(&pdev->dev, nvme_vendor_memory_size(dev), dev->db_mem, dev->doorbell);
+	dev->db_mem = 0;
  unmap:
 	iounmap(dev->bar);
 	dev->bar = NULL;
