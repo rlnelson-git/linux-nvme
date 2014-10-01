@@ -2083,7 +2083,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 }
 
 static int nvme_vendor_memory_size(struct nvme_dev *dev) {
-	return ((num_online_cpus() + 1) * 8 * dev->db_stride);
+	return ((num_possible_cpus() + 1) * 8 * dev->db_stride);
 }
 
 static int nvme_dev_map(struct nvme_dev *dev)
